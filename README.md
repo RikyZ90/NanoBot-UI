@@ -1,6 +1,6 @@
 # 🐈 NanoBot-UI
 
-**Nano-UI** is a modern, lightweight web interface that makes it easy to talk to [nanobot](https://github.com/HKUDS/nanobot) from your browser.
+**NanoBot-UI** is a modern, lightweight web interface that makes it easy to talk to [nanobot](https://github.com/HKUDS/nanobot) from your browser.
 
 It includes:
 
