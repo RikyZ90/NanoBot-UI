@@ -73,7 +73,6 @@ docker compose up -d --build
 Then open:
 
 - **Nano-UI**: `http://localhost:50002`
-- **Nanobot HTTP gateway** (optional): `http://localhost:50001`
 
 ---
 
