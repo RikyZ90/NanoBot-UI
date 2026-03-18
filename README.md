@@ -52,7 +52,6 @@ Edit `.env` and set:
 A simple docker-compose setup for Nano-UI. Nano-UI communicates with nanobot by using the Docker socket (`docker exec`), so the nanobot service can run separately (or be managed however you prefer).
 
 ```yaml
-version: "3.8"
 
 services:
   nano-ui:
