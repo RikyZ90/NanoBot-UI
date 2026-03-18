@@ -1,0 +1,13 @@
+services:
+  nano-ui:
+    build: .
+    container_name: nano-ui
+    ports:
+      - '${NANO_UI_PORT:-50002}:50002'
+    volumes:
+      - ${NANOBOT_CONFIG_PATH:-/home/ubuntu/lab/.nanobot/config.json}:/app/config.json
+      - ${NANOBOT_SESSIONS_DIR:-/home/ubuntu/lab/.nanobot/workspace/sessions}:/app/sessions
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
+    environment:
+      - PYTHONUNBUFFERED=1

@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Environment / Config (contains API keys and tokens)
+config.json
+current_config.json
+config_update.json
+config_dump.txt
+.env
+
+# Logs
+*.log
+server.log
+
+# Sessions data
+sessions/
+
+# Debug / temp files
+raw_output.txt
+to_download.json
+debug_output.py
+debug_test.html
+
+# Backup / variant files (not part of core)
+*_backup.py
+*_remote.py
+*_final.py
+app_remote.js
+server_remote_backup.py
+server_final.py
+server_from_remote.py
+clean_remote_sessions.py
+compare_meta.py
+nanobot_commands.py
+nanobot_loop.py
+test.py
+update_config.py
+*.txt
+*.json
+!requirements.txt
+!package.json
+!manifest.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

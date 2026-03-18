@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🐈 NanoUi</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    
+    <!-- Syntax Highlighting (Dark Theme) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/logo_cat.png" />
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo-container">
+            <img src="assets/logo_cat.png" class="logo-img" alt="Nanobot Logo">
+            <h2>Nanobot</h2>
+          </div>
+          <button id="new-chat-btn" class="icon-btn" title="New Chat" aria-label="New Chat">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+        </div>
+
+        <div class="sidebar-content">
+          <div id="session-list" class="session-list">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <div class="sidebar-footer">
+          <!-- Settings Button -->
+          <button class="sidebar-settings-btn" onclick="SettingsPanel.open()" title="Settings" aria-label="Open Settings">
+            <span class="btn-icon">⚙️</span>
+            <span>Settings</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Chat Area -->
+      <main class="main-content">
+        <header class="chat-header">
+          <h1 id="current-session-title">New Session</h1>
+          <div class="header-actions">
+           <span class="status-indicator active"></span>
+           <span class="status-text">Ready</span>
+            <button id="restart-btn" class="icon-btn restart-btn" title="Restart System" aria-label="Restart System">
+              🔄
+            </button>
+          </div>
+        </header>
+
+        <div id="chat-window" class="chat-scroll-area">
+          <div class="welcome-screen">
+            <div class="welcome-icon">⚡</div>
+            <h2>How can I help you today?</h2>
+            <p>I am your local AI agent. I can write code, run commands, and assist you with your tasks.</p>
+          </div>
+        </div>
+
+        <div class="input-area">
+          <form id="chat-form" class="chat-form">
+            <div class="input-wrapper">
+              <textarea 
+                id="chat-input" 
+                placeholder="Ask me anything..." 
+                rows="1"
+                autofocus
+              ></textarea>
+              <button type="submit" id="send-btn" class="send-btn" disabled>
+                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+            </div>
+          </form>
+          <div class="input-footer">
+            Nano Agent responds in Markdown format. Shift+Enter for new line.
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- ⚙️ Settings Panel Overlay -->
+    <div id="settings-overlay" class="settings-overlay">
+      <div class="settings-backdrop" onclick="SettingsPanel.close()"></div>
+      <div class="settings-panel">
+        <!-- Header -->
+        <div class="settings-header">
+          <h2>⚙️ Settings</h2>
+          <button class="close-settings" onclick="SettingsPanel.close()" title="Close">✕</button>
+        </div>
+
+        <!-- Tab Bar -->
+        <div id="settings-tabs"></div>
+
+        <!-- Dynamic Content -->
+        <div id="settings-content"></div>
+
+        <!-- Footer -->
+        <div class="settings-footer">
+          <button class="btn-save" onclick="SettingsPanel.saveConfig()">
+            💾 Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
+    
+    <!-- Custom Logic -->
+    <script src="settings.js"></script>
+    <script src="app.js"></script>
+
+    <!-- Custom Modal Overlay -->
+    <div id="custom-modal-overlay" class="modal-overlay">
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <h3 id="modal-title">Title</h3>
+        </div>
+        <div class="modal-body">
+          <p id="modal-message">Message</p>
+          <input type="text" id="modal-input" class="modal-input" style="display: none;" />
+        </div>
+        <div class="modal-footer">
+          <button id="modal-cancel-btn" class="btn-cancel">Cancel</button>
+          <button id="modal-confirm-btn" class="btn-confirm">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Restart Overlay -->
+    <div id="restart-overlay" class="restart-overlay">
+      <div class="restart-modal">
+        <div class="restart-spinner">🔄</div>
+        <h3>Restarting...</h3>
+        <p>The system is reloading. We'll be back in a few seconds.</p>
+      </div>
+    </div>
+  </body>
+</html>
