@@ -14,13 +14,16 @@ It includes:
 
 ## 📸 Screenshots
 
-### Chat UI
-
-![Chat UI](assets/screenshot-chat.png)
-
-### Settings panel
-
-![Settings panel](assets/screenshot-settings.png)
+<table>
+  <tr>
+    <td align="center"><b>💬 Chat UI</b></td>
+    <td align="center"><b>⚙️ Settings Panel</b></td>
+  </tr>
+  <tr>
+    <td><img src="assets/screenshot-chat.png" width="420" alt="Chat UI"/></td>
+    <td><img src="assets/screenshot-settings.png" width="420" alt="Settings Panel"/></td>
+  </tr>
+</table>
 
 ---
 
