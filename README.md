@@ -60,16 +60,13 @@ services:
     build: .  # path to this repo
     container_name: nano-ui
     ports:
-      - "${NANO_UI_PORT:-50002}:50002"  # Nano-UI web UI
+      - "50002:50002"  # Nano-UI web UI
     volumes:
       - ${NANOBOT_CONFIG_PATH:-./config.json}:/app/config.json
       - ${NANOBOT_SESSIONS_DIR:-./sessions}:/app/sessions
       - /var/run/docker.sock:/var/run/docker.sock
 ```
 
-> ✅ **Note:** Nano-UI does **not** talk to nanobot over HTTP. It uses `docker exec` to run `nanobot agent ...` inside the nanobot container. Make sure a `nanobot` container exists and is accessible (same Docker socket).
-
-> ✅ **Note:** Nano-UI does **not** talk to nanobot over HTTP. It uses `docker exec` to run `nanobot agent ...` inside the nanobot container. The `50001` port is only needed if you want to use nanobot’s gateway API directly.
 
 ### 4) Launch
 
@@ -110,22 +107,6 @@ Add or update the `channels.telegram` section in your nanobot `config.json`:
 - `allowFrom`: optional list of allowed chat IDs (leave empty to allow all).
 
 Nano-UI reads these settings live on every webhook request — so you can update `config.json` or use the Settings panel without restarting.
-
-### 2) Register the webhook
-
-```bash
-curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<YOUR_DOMAIN>/api/v1/telegram/webhook"
-```
-
-✅ Telegram requires a **public HTTPS URL**. If you use a reverse proxy (Traefik/Nginx/Caddy), make sure it forwards `/api/v1/telegram/webhook` to Nano-UI.
-
-### 3) Verify the webhook
-
-```bash
-curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
-```
-
----
 
 ## 🧩 Developer / Local Run
 
