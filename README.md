@@ -30,9 +30,7 @@ Nano-UI is designed to run alongside a nanobot container. The UI communicates wi
 
 ### 1) Prerequisites
 
-- Docker
-- Docker Compose (or `docker compose`)
-- A nanobot config directory (commonly `~/.nanobot`)
+- nanobot directory (commonly `~/.nanobot`)
 
 ### 2) Configure environment variables
 
