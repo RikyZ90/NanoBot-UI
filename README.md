@@ -128,7 +128,6 @@ Then open: `http://localhost:50002`
 - `app.js` — frontend logic (chat UI, streaming SSE, session management).
 - `settings.js` — settings panel UI + config.json editor.
 - `index.html` / `style.css` — layout and styling.
-- `sessions/` — chat history stored as `.jsonl`.
 
 ---
 
