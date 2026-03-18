@@ -44,7 +44,6 @@ cp .env.example .env
 
 Edit `.env` and set:
 
-- `NANO_UI_PORT` (default: `50002`) — port exposed by Nano-UI.
 - `NANOBOT_CONFIG_PATH` — path to your `config.json` on the host.
 - `NANOBOT_SESSIONS_DIR` — path to your nanobot session folder on the host.
 
