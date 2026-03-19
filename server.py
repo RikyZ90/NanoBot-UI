@@ -304,11 +304,8 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
             ]
 
             # Helper to try cat across multiple roots
+            context_errors = []
             def try_cat(filename):
-                last_error = ""
-                # If filename is already absolute (starts with /), try it directly first
-                search_roots = ["/"] + roots if filename.startswith("/") else roots
-                
                 for root in roots:
                     # Resolve path
                     path = os.path.join(root, filename).replace("\\", "/")
@@ -322,10 +319,9 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
                             if out.startswith("Hint:"): continue
                             return out
                         if proc.stderr:
-                            last_error = proc.stderr.strip()
+                            context_errors.append(f"{path}: {proc.stderr.strip()}")
                     except Exception as e:
-                        last_error = str(e)
-                logger.debug(f"Failed to catch {filename}: {last_error}")
+                        context_errors.append(f"{path}: {e}")
                 return None
 
             # Collect all unique files
@@ -355,7 +351,16 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
                 if messages:
                     parts.append("## Current Session\n" + "\n".join(messages))
             
-            raw_context = "\n\n".join(parts) if parts else "(No context available)"
+            if not parts:
+                # If nothing found, provide a debug hint for the user
+                roots_str = ", ".join(roots)
+                err_str = "\n".join(context_errors[:10]) # Show first 10 errors
+                parts.append(f"## Debug Info (No files found)\n"
+                             f"Searched roots: {roots_str}\n"
+                             f"Container name used: nanobot\n"
+                             f"Errors encountered:\n{err_str}")
+
+            raw_context = "\n\n".join(parts)
             
             # Simple word count approximation for tokens (1 word ~ 1.3 tokens)
             word_count = len(raw_context.split())
