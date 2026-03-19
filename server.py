@@ -284,7 +284,7 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
             roots = ["/app/workspace/", "/root/.nanobot/workspace/", "/app/"]
             
             # 2. Files to look for
-            bootstrap_files = ["AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md", "bootstrap.md"]
+            bootstrap_files = ["AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md", "bootstrap.md", "BOOTSTRAP.md"]
             memory_files = ["memory/MEMORY.md", "memory/HISTORY.md"]
             
             # Helper to try cat across multiple roots
@@ -318,7 +318,7 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
                     if not line.strip(): continue
                     try:
                         m = json.loads(line)
-                        if getattr(m, "get", lambda x: None)("_type") == "metadata": continue
+                        if m.get("_type") == "metadata": continue
                         r = m.get("role", "unknown").upper()
                         c = m.get("content", "")
                         messages.append(f"[{r}] {c}")
