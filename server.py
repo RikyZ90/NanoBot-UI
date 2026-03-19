@@ -280,19 +280,34 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
 
             parts = []
 
-            # 1. Read Bootstrap files via docker exec
-            bootstrap_files = ["AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md"]
-            for f in bootstrap_files:
-                cmd = ["docker", "exec", "nanobot", "cat", f"/app/workspace/{f}"]
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-                if proc.returncode == 0 and proc.stdout.strip():
-                    parts.append(f"## {f}\n{proc.stdout.strip()}")
+            # 1. Potential workspace roots inside the nanobot container
+            roots = ["/app/workspace/", "/root/.nanobot/workspace/", "/app/"]
+            
+            # 2. Files to look for
+            bootstrap_files = ["AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md", "bootstrap.md"]
+            memory_files = ["memory/MEMORY.md", "memory/HISTORY.md"]
+            
+            # Helper to try cat across multiple roots
+            def try_cat(filename):
+                for root in roots:
+                    path = os.path.join(root, filename).replace("\\", "/")
+                    cmd = ["docker", "exec", "nanobot", "cat", path]
+                    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+                    if proc.returncode == 0 and proc.stdout.strip():
+                        return proc.stdout.strip()
+                return None
 
-            # 2. Read Long-term Memory
-            mem_cmd = ["docker", "exec", "nanobot", "cat", "/app/workspace/memory/MEMORY.md"]
-            mem_proc = subprocess.run(mem_cmd, capture_output=True, text=True, timeout=5)
-            if mem_proc.returncode == 0 and mem_proc.stdout.strip():
-                parts.append(f"## Long-term Memory\n{mem_proc.stdout.strip()}")
+            # Collect Bootstrap
+            for f in bootstrap_files:
+                content = try_cat(f)
+                if content:
+                    parts.append(f"## {f}\n{content}")
+
+            # Collect Memory
+            for f in memory_files:
+                content = try_cat(f)
+                if content:
+                    parts.append(f"## {os.path.basename(f)}\n{content}")
 
             # 3. Read Session messages
             fpath = SESSIONS_DIR / f"{session_id}.jsonl"
