@@ -282,46 +282,48 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
 
             parts = []
 
-            # 1. Potential workspace roots inside the nanobot container
-            # We add /root/ and /home/ubuntu/ since these are common in the user's setup
-            roots = ["/app/workspace/", "/root/.nanobot/workspace/", "/app/", "/root/", "/home/ubuntu/", "/"]
+            # 1. Potential workspace roots (local and container)
+            # Prioritize the mounted path /app/workspace/
+            roots = ["/app/workspace/", "/home/ubuntu/lab/", "/root/", "/"]
             
-            # 2. Files to look for (standard nanobot names)
-            bootstrap_files = [
-                "AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md", 
-                "bootstrap.md", "BOOTSTRAP.md", "SYSTEM.md", "CONTEXT.md",
-                "MEM.md", "MEMORY.md", "HISTORY.md"
-            ]
+            # Additional subdirectory to search for memory files
+            memory_subdirs = ["memory/", ".nanobot/workspace/memory/", ".nanobot/memory/"]
+            
             memory_files = [
-                ".nanobot/workspace/memory/SOUL.md",
-                ".nanobot/workspace/memory/AGENTS.md",
-                ".nanobot/workspace/memory/USER.md",
-                ".nanobot/workspace/memory/MEMORY.md",
-                ".nanobot/workspace/memory/TOOLS.md",
-                "memory/MEMORY.md", "memory/HISTORY.md", 
-                "memory/USER.md", "memory/AGENTS.md", "memory/SOUL.md", 
-                ".nanobot/memory/MEMORY.md", ".nanobot/memory/HISTORY.md"
+                "SOUL.md", "AGENTS.md", "USER.md", "MEMORY.md", "TOOLS.md", "HISTORY.md"
+            ]
+            bootstrap_files = [
+                "bootstrap.md", "SYSTEM.md", "CONTEXT.md"
             ]
 
             # Helper to try cat across multiple roots
             context_errors = []
             def try_cat(filename):
+                # We try both local reading (for mounted volumes) and docker exec (fallback)
                 for root in roots:
-                    # Resolve path
-                    path = os.path.join(root, filename).replace("\\", "/")
-                    if not path.startswith("/"): path = "/" + path
-                    
-                    cmd = ["docker", "exec", "nanobot", "cat", path]
-                    try:
-                        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-                        if proc.returncode == 0 and proc.stdout.strip():
-                            out = proc.stdout.strip()
-                            if out.startswith("Hint:"): continue
-                            return out
-                        if proc.stderr:
-                            context_errors.append(f"{path}: {proc.stderr.strip()}")
-                    except Exception as e:
-                        context_errors.append(f"{path}: {e}")
+                    for subdir in [""] + memory_subdirs:
+                        path_str = os.path.join(root, subdir, filename).replace("\\", "/")
+                        if not path_str.startswith("/"): path_str = "/" + path_str
+                        path = Path(path_str)
+                        
+                        # A. Try Local Read (Fastest, works for mounted /app/workspace)
+                        try:
+                            if path.exists() and path.is_file():
+                                content = path.read_text(encoding="utf-8").strip()
+                                if content and not content.startswith("Hint:"):
+                                    return content
+                        except Exception: pass
+                        
+                        # B. Try Docker Exec fallback
+                        cmd = ["docker", "exec", "nanobot", "cat", path_str]
+                        try:
+                            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
+                            if proc.returncode == 0 and proc.stdout.strip():
+                                out = proc.stdout.strip()
+                                if not out.startswith("Hint:"): return out
+                            if proc.stderr: context_errors.append(f"{path_str} (docker): {proc.stderr.strip()}")
+                        except Exception as e:
+                            context_errors.append(f"{path_str} (docker): {e}")
                 return None
 
             # Collect all unique files
