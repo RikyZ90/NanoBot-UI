@@ -28,22 +28,7 @@ const purifyConfig = {
 
 function renderMarkdown(content) {
   try {
-    // Configure marked for this specific parse call for maximum reliability
-    const options = {
-      breaks: true,
-      gfm: true,
-      langPrefix: 'hljs language-',
-      highlight: function(code, lang) {
-        if (lang && hljs.getLanguage(lang)) {
-          try {
-            return hljs.highlight(code, { language: lang }).value;
-          } catch (__) {}
-        }
-        return hljs.highlightAuto(code).value;
-      }
-    };
-    
-    const rawHtml = marked.parse(content, options);
+    const rawHtml = marked.parse(content);
     return DOMPurify.sanitize(rawHtml, purifyConfig);
   } catch (err) {
     console.error("Markdown parse error:", err);
@@ -585,6 +570,9 @@ function addCopyButtonsToCodeBlocks(container) {
     if (pre.dataset.copyButtonAdded) return;
     pre.dataset.copyButtonAdded = "true";
 
+    // Apply highlighting manually since we removed the marked highlight option
+    hljs.highlightElement(code);
+
     // Extract language gracefully
     let lang = 'code';
     code.classList.forEach(cls => {
@@ -675,7 +663,7 @@ const ProcessManager = {
     
     const isTool = content.includes("(") && content.endsWith(")");
     step.className = `process-step ${isTool ? 'tool-call' : ''}`;
-    step.textContent = content;
+    step.innerHTML = renderMarkdown(content);
     
     stepsList.appendChild(step);
     elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
@@ -788,12 +776,17 @@ async function handleSubmit(e) {
                 if (!chunkDiv) {
                     chunkDiv = document.createElement("div");
                     chunkDiv.className = "streaming-chunk-container";
+                    const pre = document.createElement("pre");
+                    pre.style.whiteSpace = "pre-wrap";
+                    pre.style.wordBreak = "break-word";
+                    chunkDiv.appendChild(pre);
                     msgBody.appendChild(chunkDiv);
                 }
-                chunkDiv.innerHTML = renderMarkdown(finalResult);
+                const pre = chunkDiv.querySelector("pre");
+                if (pre) pre.textContent = finalResult;
                 elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
               }
-              } else if (currentEvent === "final") {
+            } else if (currentEvent === "final") {
                 finalResult = data.result;
                 reasonFinished = true;
                 ProcessManager.finish(reasonId);
@@ -856,7 +849,7 @@ async function handleSubmit(e) {
     ProcessManager.finish(reasonId, false);
     const errorMsg = `**Connection error:** Unable to reach server.\n\n\`${error.message}\``;
     const errDiv = document.createElement("div");
-    errDiv.innerHTML = DOMPurify.sanitize(marked.parse(errorMsg));
+    errDiv.innerHTML = DOMPurify.sanitize(marked.parse(errorMsg), purifyConfig);
     msgBody.appendChild(errDiv);
     session.messages.push({ role: "assistant", content: errorMsg, steps: currentAgentMsgSteps });
     await saveSessionToServer(session);
@@ -919,7 +912,11 @@ async function handleStop() {
 
 async function handleContext() {
   const contextBtn = document.getElementById("context-btn");
-  if (contextBtn) contextBtn.disabled = true;
+  if (!contextBtn || contextBtn.classList.contains("loading")) return;
+  
+  contextBtn.classList.add("loading");
+  const originalText = contextBtn.lastChild.textContent;
+  contextBtn.lastChild.textContent = " Loading...";
   
   try {
     const res = await fetch(`${API_BASE}/api/v1/context`, {
@@ -927,22 +924,26 @@ async function handleContext() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ session: currentSessionId })
     });
+    
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+    
     const data = await res.json();
     if (data.ok) {
         document.getElementById("context-raw-textarea").value = data.raw_context;
         const overlay = document.getElementById("context-overlay");
         overlay.classList.add("visible");
         
-        // Show approx tokens as toast since we don't have a dedicated label right now
-        showToast(`~${data.approx_tokens.toLocaleString()} tokens in context`);
+        // Show approx tokens as toast
+        showToast(`~${(data.approx_tokens || 0).toLocaleString()} tokens in context`);
     } else {
-        showToast("Failed to fetch context");
+        throw new Error(data.error || "Failed to fetch context");
     }
   } catch (e) {
-    console.error("Context failed", e);
-    showToast("Error loading context");
+    console.error("Context failed:", e);
+    showToast("Error loading context: " + e.message);
   } finally {
-    if (contextBtn) contextBtn.disabled = false;
+    contextBtn.classList.remove("loading");
+    contextBtn.lastChild.textContent = originalText;
   }
 }
 

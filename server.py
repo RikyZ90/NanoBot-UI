@@ -281,33 +281,45 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
             parts = []
 
             # 1. Potential workspace roots inside the nanobot container
-            roots = ["/app/workspace/", "/root/.nanobot/workspace/", "/app/"]
+            roots = ["/app/workspace/", "/root/.nanobot/workspace/", "/app/", "/"]
             
-            # 2. Files to look for
-            bootstrap_files = ["AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md", "bootstrap.md", "BOOTSTRAP.md"]
-            memory_files = ["memory/MEMORY.md", "memory/HISTORY.md"]
+            # 2. Files to look for (standard nanobot names)
+            bootstrap_files = [
+                "AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md", 
+                "bootstrap.md", "BOOTSTRAP.md", "SYSTEM.md", "CONTEXT.md",
+                "MEM.md", "MEMORY.md", "HISTORY.md"
+            ]
+            memory_files = [
+                "memory/MEMORY.md", "memory/HISTORY.md", 
+                "memory/USER.md", "memory/AGENTS.md", "memory/SOUL.md", 
+                ".nanobot/memory/MEMORY.md", ".nanobot/memory/HISTORY.md"
+            ]
             
             # Helper to try cat across multiple roots
             def try_cat(filename):
                 for root in roots:
+                    # Avoid double slashes and ensure absolute path
                     path = os.path.join(root, filename).replace("\\", "/")
+                    if not path.startswith("/"): path = "/" + path
+                    
                     cmd = ["docker", "exec", "nanobot", "cat", path]
-                    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+                    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
                     if proc.returncode == 0 and proc.stdout.strip():
-                        return proc.stdout.strip()
+                        # Clean prefix noise often found in nanobot output
+                        out = proc.stdout.strip()
+                        if out.startswith("Hint:"): continue # skip hints
+                        return out
                 return None
 
-            # Collect Bootstrap
-            for f in bootstrap_files:
+            # Collect all unique files
+            all_files = list(dict.fromkeys(bootstrap_files + memory_files))
+            
+            for f in all_files:
                 content = try_cat(f)
                 if content:
-                    parts.append(f"## {f}\n{content}")
-
-            # Collect Memory
-            for f in memory_files:
-                content = try_cat(f)
-                if content:
-                    parts.append(f"## {os.path.basename(f)}\n{content}")
+                    # If the file path is long, just show the basename for cleaner display
+                    display_name = os.path.basename(f)
+                    parts.append(f"## {display_name}\n\n{content}")
 
             # 3. Read Session messages
             fpath = SESSIONS_DIR / f"{session_id}.jsonl"
