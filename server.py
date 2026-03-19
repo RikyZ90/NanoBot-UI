@@ -292,6 +292,11 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
                 "MEM.md", "MEMORY.md", "HISTORY.md"
             ]
             memory_files = [
+                ".nanobot/workspace/memory/SOUL.md",
+                ".nanobot/workspace/memory/AGENTS.md",
+                ".nanobot/workspace/memory/USER.md",
+                ".nanobot/workspace/memory/MEMORY.md",
+                ".nanobot/workspace/memory/TOOLS.md",
                 "memory/MEMORY.md", "memory/HISTORY.md", 
                 "memory/USER.md", "memory/AGENTS.md", "memory/SOUL.md", 
                 ".nanobot/memory/MEMORY.md", ".nanobot/memory/HISTORY.md"
