@@ -82,6 +82,22 @@
               </button>
             </div>
           </form>
+          
+          <div class="input-toolbar">
+              <button class="toolbar-btn stop-btn" id="stop-btn" type="button" style="display:none">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                  Pause Agent
+              </button>
+              <button class="toolbar-btn" id="context-btn" type="button">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
+                  </svg>
+                  Context
+              </button>
+          </div>
+
           <div class="input-footer">
             Nano Agent responds in Markdown format. Shift+Enter for new line.
           </div>
@@ -147,6 +163,20 @@
         <div class="restart-spinner">🔄</div>
         <h3>Restarting...</h3>
         <p>The system is reloading. We'll be back in a few seconds.</p>
+      </div>
+    </div>
+
+    <!-- Context Overlay -->
+    <div id="context-overlay" class="settings-overlay" style="display:none;">
+      <div class="settings-backdrop" id="context-backdrop"></div>
+      <div class="settings-panel context-panel">
+        <div class="settings-header">
+          <h2>🖨️ Session Context</h2>
+          <button class="close-settings" id="close-context-btn" title="Close">✕</button>
+        </div>
+        <div class="context-body">
+          <textarea id="context-raw-textarea" class="context-raw-textarea" readonly></textarea>
+        </div>
       </div>
     </div>
   </body>

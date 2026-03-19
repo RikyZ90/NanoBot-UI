@@ -41,6 +41,10 @@ if not CONFIG_PATH.exists() and DEFAULT_CONFIG.exists():
 SESSIONS_DIR = Path(os.environ.get("NANO_SESSIONS_DIR", str(WORKDIR / "sessions")))
 SESSIONS_DIR.mkdir(exist_ok=True, parents=True)
 
+# Global process tracking for stop feature
+_active_proc: subprocess.Popen | None = None
+_proc_lock = threading.Lock()
+
 
 # ── Telegram config helpers ──────────────────────────────────────────────────
 
@@ -160,6 +164,10 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
                 self._handle_config_post()
             elif parsed.path == "/api/v1/restart":
                 self._handle_restart()
+            elif parsed.path == "/api/v1/stop":
+                self._handle_stop()
+            elif parsed.path == "/api/v1/context":
+                self._handle_context()
             elif parsed.path == "/api/v1/telegram/webhook":
                 self._handle_telegram_webhook()
             elif parsed.path == "/api/v1/sessions":
@@ -248,6 +256,75 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
             logger.exception("_process_telegram_update failed")
 
     # ── Existing handlers ────────────────────────────────────────────────────
+
+    def _handle_stop(self):
+        global _active_proc
+        try:
+            with _proc_lock:
+                if _active_proc is not None:
+                    _active_proc.kill()
+                    _active_proc = None
+                    logger.info("Active generation process killed via /stop")
+                    return self._send_json({"ok": True, "killed": True})
+            return self._send_json({"ok": True, "killed": False, "message": "No active process"})
+        except Exception as e:
+            logger.error(f"Stop failed: {e}")
+            return self._send_json({"ok": False, "error": str(e)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def _handle_context(self):
+        try:
+            data = self._parse_request_body()
+            session_id = data.get("session")
+            if not session_id:
+                return self._send_json({"error": "missing session id"}, status=HTTPStatus.BAD_REQUEST)
+
+            parts = []
+
+            # 1. Read Bootstrap files via docker exec
+            bootstrap_files = ["AGENTS.md", "SOUL.md", "USER.md", "TOOLS.md"]
+            for f in bootstrap_files:
+                cmd = ["docker", "exec", "nanobot", "cat", f"/app/workspace/{f}"]
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                if proc.returncode == 0 and proc.stdout.strip():
+                    parts.append(f"## {f}\n{proc.stdout.strip()}")
+
+            # 2. Read Long-term Memory
+            mem_cmd = ["docker", "exec", "nanobot", "cat", "/app/workspace/memory/MEMORY.md"]
+            mem_proc = subprocess.run(mem_cmd, capture_output=True, text=True, timeout=5)
+            if mem_proc.returncode == 0 and mem_proc.stdout.strip():
+                parts.append(f"## Long-term Memory\n{mem_proc.stdout.strip()}")
+
+            # 3. Read Session messages
+            fpath = SESSIONS_DIR / f"{session_id}.jsonl"
+            if fpath.exists():
+                lines = fpath.read_text(encoding="utf-8").splitlines()
+                messages = []
+                for line in lines:
+                    if not line.strip(): continue
+                    try:
+                        m = json.loads(line)
+                        if getattr(m, "get", lambda x: None)("_type") == "metadata": continue
+                        r = m.get("role", "unknown").upper()
+                        c = m.get("content", "")
+                        messages.append(f"[{r}] {c}")
+                    except Exception: pass
+                if messages:
+                    parts.append("## Current Session\n" + "\n".join(messages))
+            
+            raw_context = "\n\n".join(parts) if parts else "(No context available)"
+            
+            # Simple word count approximation for tokens (1 word ~ 1.3 tokens)
+            word_count = len(raw_context.split())
+            approx_tokens = int(word_count * 1.3)
+            
+            return self._send_json({
+                "ok": True, 
+                "raw_context": raw_context,
+                "approx_tokens": approx_tokens
+            })
+        except Exception as e:
+            logger.error(f"Context failed: {e}")
+            return self._send_json({"ok": False, "error": str(e)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def _handle_restart(self):
         try:
@@ -487,44 +564,52 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
         try:
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
+            global _active_proc
             with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=env) as proc:
-                skip_prefixes = ("Hint:", "`memoryWindow`", "\U0001f408 nanobot", "\U0001f43e nanobot")
-                content_lines = []
-                is_capturing_content = False
-                for line in proc.stdout:
-                    logger.debug(f"NANOBOT-OUT: {repr(line)}")
-                    stripped = line.strip()
-                    if not stripped:
-                        if is_capturing_content:
-                            content_lines.append("")
-                            send_event("chunk", {"content": "\n"})
-                        continue
-                    if any(stripped.startswith(p) for p in skip_prefixes):
-                        continue
-                    is_progress = False
-                    if not is_capturing_content:
-                        markers = ["\u21b3", "\u2192", "Thinking...", "Tool", "Calling", "Running", "Analyzing"]
-                        if (line.startswith("  ") and not stripped.startswith("```")) or any(m in line for m in markers) or "thinking..." in stripped.lower():
-                            is_progress = True
-                    if is_progress:
-                        clean = stripped
-                        for sym in ["\u21b3", "\u2192"]: clean = clean.replace(sym, "")
-                        send_event("progress", {"content": clean.strip() or stripped})
-                        continue
-                    is_capturing_content = True
-                    content_lines.append(line.rstrip())
-                    send_event("chunk", {"content": line})
+                with _proc_lock:
+                    _active_proc = proc
+                try:
+                    skip_prefixes = ("Hint:", "`memoryWindow`", "\U0001f408 nanobot", "\U0001f43e nanobot")
+                    content_lines = []
+                    is_capturing_content = False
+                    for line in proc.stdout:
+                        logger.debug(f"NANOBOT-OUT: {repr(line)}")
+                        stripped = line.strip()
+                        if not stripped:
+                            if is_capturing_content:
+                                content_lines.append("")
+                                send_event("chunk", {"content": "\n"})
+                            continue
+                        if any(stripped.startswith(p) for p in skip_prefixes):
+                            continue
+                        is_progress = False
+                        if not is_capturing_content:
+                            markers = ["\u21b3", "\u2192", "Thinking...", "Tool", "Calling", "Running", "Analyzing"]
+                            if (line.startswith("  ") and not stripped.startswith("```")) or any(m in line for m in markers) or "thinking..." in stripped.lower():
+                                is_progress = True
+                        if is_progress:
+                            clean = stripped
+                            for sym in ["\u21b3", "\u2192"]: clean = clean.replace(sym, "")
+                            send_event("progress", {"content": clean.strip() or stripped})
+                            continue
+                        is_capturing_content = True
+                        content_lines.append(line.rstrip())
+                        send_event("chunk", {"content": line})
 
-                proc.wait()
-                if proc.returncode != 0:
-                    send_event("error", {"message": f"nanobot failed ({proc.returncode})"})
-                while content_lines and not content_lines[0].strip(): content_lines.pop(0)
-                while content_lines and not content_lines[-1].strip(): content_lines.pop()
-                result = "\n".join(content_lines).strip()
-                if result: send_event("final", {"result": result})
-                self.wfile.write(b"event: end\ndata: {\"done\":true}\n\n")
-                self.wfile.flush()
-                self.close_connection = 1
+                    proc.wait()
+                    if proc.returncode != 0:
+                        send_event("error", {"message": f"nanobot failed ({proc.returncode})"})
+                    while content_lines and not content_lines[0].strip(): content_lines.pop(0)
+                    while content_lines and not content_lines[-1].strip(): content_lines.pop()
+                    result = "\n".join(content_lines).strip()
+                    if result: send_event("final", {"result": result})
+                    self.wfile.write(b"event: end\ndata: {\"done\":true}\n\n")
+                    self.wfile.flush()
+                    self.close_connection = 1
+                finally:
+                    with _proc_lock:
+                        if _active_proc is proc:
+                            _active_proc = None
         except Exception as e:
             logger.exception("Error in SSE stream")
             send_event("error", {"message": str(e)})

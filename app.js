@@ -109,6 +109,17 @@ function setupEventListeners() {
       }
     });
   }
+
+  const stopBtn = document.getElementById("stop-btn");
+  if (stopBtn) stopBtn.addEventListener("click", handleStop);
+
+  const contextBtn = document.getElementById("context-btn");
+  if (contextBtn) contextBtn.addEventListener("click", handleContext);
+
+  const closeContextBtn = document.getElementById("close-context-btn");
+  if (closeContextBtn) closeContextBtn.addEventListener("click", () => {
+      document.getElementById("context-overlay").style.display = "none";
+  });
 } // setupEventListeners
 
 // ─── Session Management (Server-Backed) ─────────────────────
@@ -864,6 +875,9 @@ function setStatus(loading, text) {
   const inputVal = elements.chatInput.value.trim();
   elements.sendBtn.disabled = loading || inputVal.length === 0;
   elements.chatForm.classList.toggle("is-loading", loading);
+
+  const stopBtn = document.getElementById("stop-btn");
+  if (stopBtn) stopBtn.style.display = loading ? "flex" : "none";
 }
 
 // Legacy placeholder (unused) - removed to avoid confusion.
@@ -887,6 +901,49 @@ async function handleSystemRestart() {
   setTimeout(() => {
     window.location.reload();
   }, 8000);
+}
+
+// ─── Toolbar Handlers ───────────────────────────────────────
+async function handleStop() {
+  if (!isGenerating) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/stop`, { method: "POST" });
+    if (res.ok) {
+        setStatus(false, "Stopped");
+        showToast("Generation stopped");
+    }
+  } catch (e) {
+    console.error("Stop failed", e);
+  }
+}
+
+async function handleContext() {
+  const contextBtn = document.getElementById("context-btn");
+  if (contextBtn) contextBtn.disabled = true;
+  
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/context`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session: currentSessionId })
+    });
+    const data = await res.json();
+    if (data.ok) {
+        document.getElementById("context-raw-textarea").value = data.raw_context;
+        const overlay = document.getElementById("context-overlay");
+        overlay.style.display = "flex";
+        
+        // Show approx tokens as toast since we don't have a dedicated label right now
+        showToast(`~${data.approx_tokens.toLocaleString()} tokens in context`);
+    } else {
+        showToast("Failed to fetch context");
+    }
+  } catch (e) {
+    console.error("Context failed", e);
+    showToast("Error loading context");
+  } finally {
+    if (contextBtn) contextBtn.disabled = false;
+  }
 }
 
 // Boot
