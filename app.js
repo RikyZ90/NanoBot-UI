@@ -118,7 +118,7 @@ function setupEventListeners() {
 
   const closeContextBtn = document.getElementById("close-context-btn");
   if (closeContextBtn) closeContextBtn.addEventListener("click", () => {
-      document.getElementById("context-overlay").style.display = "none";
+      document.getElementById("context-overlay").classList.remove("visible");
   });
 } // setupEventListeners
 
@@ -931,7 +931,7 @@ async function handleContext() {
     if (data.ok) {
         document.getElementById("context-raw-textarea").value = data.raw_context;
         const overlay = document.getElementById("context-overlay");
-        overlay.style.display = "flex";
+        overlay.classList.add("visible");
         
         // Show approx tokens as toast since we don't have a dedicated label right now
         showToast(`~${data.approx_tokens.toLocaleString()} tokens in context`);
