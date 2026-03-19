@@ -283,7 +283,8 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
             parts = []
 
             # 1. Potential workspace roots inside the nanobot container
-            roots = ["/app/workspace/", "/root/.nanobot/workspace/", "/app/", "/"]
+            # We add /root/ and /home/ubuntu/ since these are common in the user's setup
+            roots = ["/app/workspace/", "/root/.nanobot/workspace/", "/app/", "/root/", "/home/ubuntu/", "/"]
             
             # 2. Files to look for (standard nanobot names)
             bootstrap_files = [
@@ -301,21 +302,30 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
                 "memory/USER.md", "memory/AGENTS.md", "memory/SOUL.md", 
                 ".nanobot/memory/MEMORY.md", ".nanobot/memory/HISTORY.md"
             ]
-            
+
             # Helper to try cat across multiple roots
             def try_cat(filename):
+                last_error = ""
+                # If filename is already absolute (starts with /), try it directly first
+                search_roots = ["/"] + roots if filename.startswith("/") else roots
+                
                 for root in roots:
-                    # Avoid double slashes and ensure absolute path
+                    # Resolve path
                     path = os.path.join(root, filename).replace("\\", "/")
                     if not path.startswith("/"): path = "/" + path
                     
                     cmd = ["docker", "exec", "nanobot", "cat", path]
-                    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-                    if proc.returncode == 0 and proc.stdout.strip():
-                        # Clean prefix noise often found in nanobot output
-                        out = proc.stdout.strip()
-                        if out.startswith("Hint:"): continue # skip hints
-                        return out
+                    try:
+                        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                        if proc.returncode == 0 and proc.stdout.strip():
+                            out = proc.stdout.strip()
+                            if out.startswith("Hint:"): continue
+                            return out
+                        if proc.stderr:
+                            last_error = proc.stderr.strip()
+                    except Exception as e:
+                        last_error = str(e)
+                logger.debug(f"Failed to catch {filename}: {last_error}")
                 return None
 
             # Collect all unique files
