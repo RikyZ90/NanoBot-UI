@@ -114,8 +114,10 @@ def _run_nanobot(message: str, session: str) -> str:
                 continue
             if any(stripped.startswith(p) for p in skip_prefixes):
                 continue
-            markers = ["\u21b3", "Thinking...", "Tool", "Calling", "Running", "Analyzing"]
-            if any(m in line for m in markers) and line.startswith("  "):
+            # Only treat as reasoning if it starts with the specific nanobot prefix
+            markers = ["\u21b3", "\u2192", "Thinking...", "Tool", "Calling", "Running", "Analyzing"]
+            is_reasoning = any(line.lstrip().startswith(m) for m in markers) and line.startswith("  ")
+            if is_reasoning:
                 continue
             lines.append(line.rstrip())
         result = "\n".join(lines).strip()
@@ -611,9 +613,13 @@ class NanoUIHandler(SimpleHTTPRequestHandler):
                             continue
                         is_progress = False
                         if not is_capturing_content:
+                            # Strict reasoning markers: must have spaces AND match the nanobot output style
                             markers = ["\u21b3", "\u2192", "Thinking...", "Tool", "Calling", "Running", "Analyzing"]
-                            if (line.startswith("  ") and not stripped.startswith("```")) or any(m in line for m in markers) or "thinking..." in stripped.lower():
-                                is_progress = True
+                            # Only treat as progress if it actually looks like reasoning (indented by nanobot)
+                            if (line.startswith("  ") and not stripped.startswith("```")):
+                                if any(stripped.startswith(m) for m in markers) or "thinking..." in stripped.lower():
+                                    is_progress = True
+
                         if is_progress:
                             clean = stripped
                             for sym in ["\u21b3", "\u2192"]: clean = clean.replace(sym, "")

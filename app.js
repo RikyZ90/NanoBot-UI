@@ -28,7 +28,8 @@ const purifyConfig = {
 
 function renderMarkdown(content) {
   try {
-    const rawHtml = marked.parse(content);
+    // marked v9+ options should be passed to parse() or set via use()
+    const rawHtml = marked.parse(content, { breaks: true, gfm: true });
     return DOMPurify.sanitize(rawHtml, purifyConfig);
   } catch (err) {
     console.error("Markdown parse error:", err);
